@@ -1,0 +1,1 @@
+This file intentionally keeps the new app folder visible before npm install.
