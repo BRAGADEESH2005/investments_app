@@ -11,15 +11,20 @@ export async function GET() {
     if (!response.ok) return NextResponse.json({ error: "Live gold price is temporarily unavailable." }, { status: 502 });
 
     const data = await response.json();
-    const pricePerGram = Number(data.price_gram_24k);
-    if (!Number.isFinite(pricePerGram) || pricePerGram <= 0) {
+    const prices = {
+      18: Number(data.price_gram_18k),
+      22: Number(data.price_gram_22k),
+      24: Number(data.price_gram_24k),
+    };
+    if (Object.values(prices).some((price) => !Number.isFinite(price) || price <= 0)) {
       return NextResponse.json({ error: "Live gold price response is invalid." }, { status: 502 });
     }
 
     return NextResponse.json({
       configured: true,
-      pricePerOunce: pricePerGram * GRAMS_PER_TROY_OUNCE,
-      pricePerGram,
+      pricePerOunce: prices[24] * GRAMS_PER_TROY_OUNCE,
+      pricePerGram: prices[24],
+      prices: { perGram: prices },
       currency: data.currency,
       change: null,
       changePercent: null,
