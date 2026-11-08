@@ -12,6 +12,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!types.includes(body.type) || typeof body.name !== "string" || typeof body.principal !== "number" || body.principal <= 0 || typeof body.investedAt !== "string") {
     return NextResponse.json({ error: "Enter the required investment details." }, { status: 400 });
   }
+  if ((body.type === "FD" || body.type === "RD") && body.maturityAmount !== undefined && (typeof body.maturityAmount !== "number" || body.maturityAmount < 0)) return NextResponse.json({ error: "Maturity amount must be a non-negative number." }, { status: 400 });
   const notes = typeof body.notes === "string" ? body.notes.trim() : "";
   if (notes.length > 1000) return NextResponse.json({ error: "Notes must be 1000 characters or fewer." }, { status: 400 });
   await connectDB();

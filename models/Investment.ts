@@ -8,6 +8,7 @@ const schema = new Schema({
   investedAt: { type: String, required: true },
   startDate: String,
   endDate: String,
+  maturityAmount: { type: Number, min: 0 },
   interestRate: { type: Number, min: 0 },
   compounding: { type: String, enum: ["monthly", "quarterly", "half-yearly", "yearly"] },
   metal: { type: String, enum: ["gold", "silver"] },

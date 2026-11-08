@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import SiteNav from "@/components/SiteNav";
+import { LoadingState } from "@/components/LoadingState";
 
 type Policy = { id: string; policyName: string; policyNumber: string; policyholderName: string; lifeAssuredName: string; nomineeName?: string; policyType: string; sumAssured: number; premiumAmount: number; paymentFrequency: string; commencementDate: string; premiumPayingTerm: number; totalPolicyTerm: number; nextPremiumDueDate: string; premiumPaymentEndDate?: string; maturityDate: string; expectedMaturityAmount?: number; totalPremiumsPaid?: number; paidPremiums?: number; status?: string; documentUrl?: string; notes?: string };
 const money = (value: number) => value.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
@@ -14,7 +15,8 @@ export default function InsurancePage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [frequencyFilter, setFrequencyFilter] = useState("All");
   const [message, setMessage] = useState("");
-  async function load() { const response = await fetch("/api/lic-policies"); if (response.status === 401) { window.location.href = "/login"; return; } const data = await response.json(); setPolicies((data.items || []).map((item: Policy & { _id?: string; planName?: string; premiumFrequency?: string; nextPremiumDate?: string }) => ({ ...item, id: item.id || item._id || "", policyName: item.policyName || item.planName || "", paymentFrequency: item.paymentFrequency || item.premiumFrequency || "yearly", nextPremiumDueDate: item.nextPremiumDueDate || item.nextPremiumDate || "" }))); }
+  const [loading, setLoading] = useState(true);
+  async function load() { setLoading(true); try { const response = await fetch("/api/lic-policies"); if (response.status === 401) { window.location.href = "/login"; return; } const data = await response.json(); setPolicies((data.items || []).map((item: Policy & { _id?: string; planName?: string; premiumFrequency?: string; nextPremiumDate?: string }) => ({ ...item, id: item.id || item._id || "", policyName: item.policyName || item.planName || "", paymentFrequency: item.paymentFrequency || item.premiumFrequency || "yearly", nextPremiumDueDate: item.nextPremiumDueDate || item.nextPremiumDate || "" }))); } finally { setLoading(false); } }
   useEffect(() => { void load(); }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault(); setMessage("");
@@ -29,6 +31,7 @@ export default function InsurancePage() {
   }
   async function remove(id: string) { if (!window.confirm("Delete this LIC policy and its premium history?")) return; const password = window.prompt("Enter your password to confirm deletion:"); if (password === null) return; const response = await fetch(`/api/lic-policies/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) }); const data = await response.json(); if (response.ok) setPolicies((current) => current.filter((policy) => policy.id !== id)); else window.alert(data.error || "Could not delete policy."); }
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  if (loading) return <main className="min-h-screen bg-[#f4f7f6]"><SiteNav /><div className="mx-auto max-w-7xl px-4 py-8 sm:px-6"><LoadingState label="Loading your LIC policies..." /></div></main>;
   return <main className="min-h-screen bg-[#f4f7f6] text-slate-900"><SiteNav /><div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6"><header><p className="text-xs font-bold tracking-[.22em] text-emerald-700">LIC INSURANCE</p><h1 className="mt-2 text-4xl font-bold tracking-tight">Protect what you are building.</h1><p className="mt-2 text-slate-500">Coverage, premiums paid, and maturity benefits are tracked separately from investment value.</p></header>
     <div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><form onSubmit={save} className="space-y-3 rounded-2xl border bg-white p-5 shadow-sm"><h2 className="font-bold">Add LIC policy</h2>
       {(["policyName", "policyNumber", "policyholderName", "lifeAssuredName", "nomineeName"] as const).map((key) => <input key={key} required={key !== "nomineeName"} placeholder={key.replace(/([A-Z])/g, " $1")} value={form[key]} onChange={(e) => update(key, e.target.value)} className="w-full rounded-lg border px-3 py-3" />)}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import SiteNav from "@/components/SiteNav";
+import { LoadingState } from "@/components/LoadingState";
 
 type Investment = { principal: number; type: string };
 type Liability = { id: string; name: string; amount: number };
@@ -12,13 +13,15 @@ export default function NetWorthPage() {
   const [liabilities, setLiabilities] = useState<Liability[]>([]);
   const [form, setForm] = useState({ name: "", amount: "" });
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    Promise.all([fetch("/api/investments?pageSize=100").then((response) => response.json()), fetch("/api/liabilities").then((response) => response.json())]).then(([investmentData, liabilityData]) => { setInvestments(investmentData.investments || []); setLiabilities((liabilityData.items || []).map((item: Liability & { _id?: string }) => ({ ...item, id: item.id || item._id || "" }))); });
+    Promise.all([fetch("/api/investments?pageSize=100").then((response) => response.json()), fetch("/api/liabilities").then((response) => response.json())]).then(([investmentData, liabilityData]) => { setInvestments(investmentData.investments || []); setLiabilities((liabilityData.items || []).map((item: Liability & { _id?: string }) => ({ ...item, id: item.id || item._id || "" }))); }).finally(() => setLoading(false));
   }, []);
   const totalAssets = useMemo(() => investments.reduce((sum, item) => sum + item.principal, 0), [investments]);
   const totalLiabilities = useMemo(() => liabilities.reduce((sum, item) => sum + item.amount, 0), [liabilities]);
   const netWorth = totalAssets - totalLiabilities;
   const allocation = ["House", "FD", "RD", "Gold"].map((type) => ({ type, value: investments.filter((item) => item.type === type).reduce((sum, item) => sum + item.principal, 0) }));
+  if (loading) return <main className="min-h-screen bg-[#f4f7f6]"><SiteNav /><div className="mx-auto max-w-7xl px-4 py-8 sm:px-6"><LoadingState label="Loading your net worth..." /></div></main>;
   async function addLiability(event: React.FormEvent) {
     event.preventDefault();
     const response = await fetch("/api/liabilities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, amount: Number(form.amount) }) });
