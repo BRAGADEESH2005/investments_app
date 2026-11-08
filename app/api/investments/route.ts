@@ -23,6 +23,8 @@ export async function POST(request: Request) {
   if (!types.includes(body.type) || typeof body.name !== "string" || typeof body.principal !== "number" || body.principal <= 0 || typeof body.investedAt !== "string") return NextResponse.json({ error: "Enter the required investment details." }, { status: 400 });
   if (body.type === "Gold" && (!body.documentUrl || typeof body.quantity !== "number" || body.quantity <= 0 || !body.unit || !body.assetName)) return NextResponse.json({ error: "Gold requires a bill, quantity, unit and ornament/coin name." }, { status: 400 });
   await connectDB();
-  const item = await Investment.create({ ...body, userId: user._id });
+  const notes = typeof body.notes === "string" ? body.notes.trim() : "";
+  if (notes.length > 1000) return NextResponse.json({ error: "Notes must be 1000 characters or fewer." }, { status: 400 });
+  const item = await Investment.create({ ...body, notes, userId: user._id });
   return NextResponse.json({ id: String(item._id) }, { status: 201 });
 }

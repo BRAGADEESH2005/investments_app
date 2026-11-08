@@ -14,6 +14,7 @@ const schema = new Schema({
   quantity: Number,
   unit: { type: String, enum: ["grams", "pounds"] },
   assetName: String,
+  notes: { type: String, trim: true, maxlength: 1000 },
   documentUrl: String,
   documentPublicId: String,
   documentResourceType: String,
