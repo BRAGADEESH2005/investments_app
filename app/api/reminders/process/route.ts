@@ -41,17 +41,17 @@ export async function POST(request: Request) {
       if ((error as { code?: number }).code !== 11000) throw error;
     }
     for (const investment of investments) {
-      const user = usersById.get(String(investment.userId));
-      if (!user || !investment.endDate) continue;
-      const due = new Date(`${investment.endDate.slice(0, 10)}T00:00:00+05:30`);
-      const dueInIndia = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(due);
+      const investmentUser = usersById.get(String(investment.userId));
+      if (!investmentUser || !investment.endDate) continue;
+      const investmentDue = new Date(`${investment.endDate.slice(0, 10)}T00:00:00+05:30`);
+      const dueInIndia = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(investmentDue);
       const daysUntilDue = Math.round((Date.parse(`${dueInIndia}T00:00:00+05:30`) - Date.parse(`${todayInIndia}T00:00:00+05:30`)) / 86400000);
       const reminderType = daysUntilDue === 7 ? "7-day" : daysUntilDue === 1 ? "1-day" : daysUntilDue === 0 ? "due" : null;
       if (!reminderType) continue;
-      if (await ReminderNotification.exists({ userId: user._id, resourceId: investment._id, dueDate: due, reminderType })) continue;
-      await transporter.sendMail({ from: SMTP_FROM, to: user.email, subject: `Maturity reminder: ${investment.name}`, html: `<p>Hello ${user.name},</p><p>Your ${investment.type} investment <strong>${investment.name}</strong> matures on <strong>${investment.endDate.slice(0, 10)}</strong>.</p>` });
+      if (await ReminderNotification.exists({ userId: investmentUser._id, resourceId: investment._id, dueDate: investmentDue, reminderType })) continue;
+      await transporter.sendMail({ from: SMTP_FROM, to: investmentUser.email, subject: `Maturity reminder: ${investment.name}`, html: `<p>Hello ${investmentUser.name},</p><p>Your ${investment.type} investment <strong>${investment.name}</strong> matures on <strong>${investment.endDate.slice(0, 10)}</strong>.</p>` });
       try {
-        await ReminderNotification.create({ userId: user._id, resourceType: "investment", resourceId: investment._id, dueDate: due, reminderType, recipient: user.email });
+        await ReminderNotification.create({ userId: investmentUser._id, resourceType: "investment", resourceId: investment._id, dueDate: investmentDue, reminderType, recipient: investmentUser.email });
         sent++;
       } catch (error: unknown) {
         if ((error as { code?: number }).code !== 11000) throw error;
@@ -60,3 +60,5 @@ export async function POST(request: Request) {
   }
   return NextResponse.json({ sent });
 }
+
+export const GET = POST;
