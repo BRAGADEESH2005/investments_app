@@ -5,7 +5,7 @@ const schema = new Schema({
   policyId: { type: Schema.Types.ObjectId, ref: "LICPolicy", index: true },
   resourceType: { type: String, enum: ["lic", "investment"], default: "lic" },
   resourceId: { type: Schema.Types.ObjectId, index: true },
-  reminderType: { type: String, enum: ["7-day", "1-day", "due"], required: true },
+  reminderType: { type: String, enum: ["1-month", "7-day", "1-day", "due"], required: true },
   dueDate: { type: Date, required: true },
   sentAt: { type: Date, required: true, default: Date.now },
   recipient: { type: String, required: true },

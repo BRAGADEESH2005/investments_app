@@ -8,6 +8,24 @@ import Investment from "@/models/Investment";
 
 export const runtime = "nodejs";
 
+function reminderTypeForDueDate(today: string, due: Date) {
+  const dueInIndia = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(due);
+  const [year, month, day] = dueInIndia.split("-").map(Number);
+  const dueDate = new Date(Date.UTC(year, month - 1, day));
+  const oneMonthBefore = new Date(dueDate);
+  oneMonthBefore.setUTCMonth(oneMonthBefore.getUTCMonth() - 1);
+  if (oneMonthBefore.getUTCDate() !== day) oneMonthBefore.setUTCDate(0);
+  const oneWeekBefore = new Date(dueDate);
+  oneWeekBefore.setUTCDate(oneWeekBefore.getUTCDate() - 7);
+  const oneDayBefore = new Date(dueDate);
+  oneDayBefore.setUTCDate(oneDayBefore.getUTCDate() - 1);
+  const dateKey = (value: Date) => value.toISOString().slice(0, 10);
+  if (today === dateKey(oneMonthBefore)) return "1-month";
+  if (today === dateKey(oneWeekBefore)) return "7-day";
+  if (today === dateKey(oneDayBefore)) return "1-day";
+  return null;
+}
+
 export async function POST(request: Request) {
   const expected = process.env.CRON_SECRET;
   const authorization = request.headers.get("authorization");
@@ -29,10 +47,9 @@ export async function POST(request: Request) {
     if (!user) continue;
     const due = new Date(policy.nextPremiumDate);
     const dueInIndia = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(due);
-    const daysUntilDue = Math.round((Date.parse(`${dueInIndia}T00:00:00+05:30`) - Date.parse(`${todayInIndia}T00:00:00+05:30`)) / 86400000);
-    const reminderType = daysUntilDue === 7 ? "7-day" : daysUntilDue === 1 ? "1-day" : daysUntilDue === 0 ? "due" : null;
+    const reminderType = reminderTypeForDueDate(todayInIndia, due);
     if (!reminderType || await ReminderNotification.exists({ userId: user._id, policyId: policy._id, dueDate: due, reminderType })) continue;
-    await transporter.sendMail({ from: SMTP_FROM, to: user.email, subject: `Premium payment reminder: ${policy.planName}`, html: `<p>Hello ${user.name},</p><p>Your ${policy.insurer} policy <strong>${policy.policyNumber}</strong> premium of <strong>₹${policy.premiumAmount.toLocaleString("en-IN")}</strong> is due on <strong>${due.toISOString().slice(0, 10)}</strong>.</p>` });
+    await transporter.sendMail({ from: SMTP_FROM, to: user.email, subject: `Premium payment reminder: ${policy.planName}`, html: `<p>Hello ${user.name},</p><p>Your ${policy.insurer} policy <strong>${policy.policyNumber}</strong> premium of <strong>₹${policy.premiumAmount.toLocaleString("en-IN")}</strong> is due on <strong>${dueInIndia}</strong>.</p><p>Plan: ${policy.planName}<br>Premium frequency: ${policy.premiumFrequency}<br>Policyholder: ${policy.policyholderName || "N/A"}</p><p><strong>Pls ignore the mail if already paid.</strong></p>` });
     try {
       await ReminderNotification.create({ userId: user._id, policyId: policy._id, dueDate: due, reminderType, recipient: user.email });
       sent++;
@@ -46,10 +63,9 @@ export async function POST(request: Request) {
     if (!user || !investment.endDate) continue;
     const due = new Date(`${investment.endDate.slice(0, 10)}T00:00:00+05:30`);
     const dueInIndia = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(due);
-    const daysUntilDue = Math.round((Date.parse(`${dueInIndia}T00:00:00+05:30`) - Date.parse(`${todayInIndia}T00:00:00+05:30`)) / 86400000);
-    const reminderType = daysUntilDue === 7 ? "7-day" : daysUntilDue === 1 ? "1-day" : daysUntilDue === 0 ? "due" : null;
+    const reminderType = reminderTypeForDueDate(todayInIndia, due);
     if (!reminderType || await ReminderNotification.exists({ userId: user._id, resourceId: investment._id, dueDate: due, reminderType })) continue;
-    await transporter.sendMail({ from: SMTP_FROM, to: user.email, subject: `Maturity reminder: ${investment.name}`, html: `<p>Hello ${user.name},</p><p>Your ${investment.type} investment <strong>${investment.name}</strong> matures on <strong>${investment.endDate.slice(0, 10)}</strong>.</p>` });
+    await transporter.sendMail({ from: SMTP_FROM, to: user.email, subject: `Maturity reminder: ${investment.name}`, html: `<p>Hello ${user.name},</p><p>Your ${investment.type} investment <strong>${investment.name}</strong> matures on <strong>${dueInIndia}</strong>.</p><p>Principal: ₹${investment.principal.toLocaleString("en-IN")}<br>Interest rate: ${investment.interestRate ?? "N/A"}%<br>Maturity amount: ${investment.maturityAmount ? `₹${investment.maturityAmount.toLocaleString("en-IN")}` : "N/A"}</p><p><strong>Pls ignore the mail if already paid.</strong></p>` });
     try {
       await ReminderNotification.create({ userId: user._id, resourceType: "investment", resourceId: investment._id, dueDate: due, reminderType, recipient: user.email });
       sent++;
